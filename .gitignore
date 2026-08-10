@@ -1,0 +1,12 @@
+node_modules/
+dist/
+*.exe
+*.zip
+_build.js
+dist/
+
+# 本地临时构建/发布脚本（可能含密钥，勿提交）
+_*.log
+_*.ps1
+_debug.js
+_publish.*

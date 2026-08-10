@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NFLSHC Chat</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <!-- ==================== 标题栏 ==================== -->
+    <div class="title-bar">
+        <div class="title-bar-left">
+            <img src="../assets/icon.png" class="title-bar-icon" alt="logo">
+            <span class="title-bar-text">NFLSHC Chat</span>
+        </div>
+        <div class="title-bar-controls">
+            <button class="title-btn" id="btnWallpaper" title="每日一图壁纸（开/关）">&#xE7B7;</button>
+            <button class="title-btn" id="btnWallpaperSettings" title="壁纸设置">&#xE713;</button>
+            <button class="title-btn" id="btnMinimize" title="最小化">&#xE921;</button>
+            <button class="title-btn" id="btnMaximize" title="最大化">&#xE922;</button>
+            <button class="title-btn title-btn-close" id="btnClose" title="关闭">&#xE8BB;</button>
+        </div>
+    </div>
+
+    <!-- ==================== 登录页面 ==================== -->
+    <div id="loginPage" class="page login-page">
+        <div class="login-bg"></div>
+        <div class="login-card">
+            <img src="../assets/icon.png" class="login-logo" alt="logo">
+            <h1 class="login-title">NFLSHC Chat</h1>
+            <p class="login-subtitle">南京外国语学校淮安分校 在线聊天</p>
+
+            <div class="login-form">
+                <div class="input-group">
+                    <span class="input-icon">&#xE77B;</span>
+                    <input type="text" id="loginUsername" placeholder="用户名" autocomplete="off" class="fluent-input">
+                </div>
+                <div class="input-group">
+                    <span class="input-icon">&#xE72E;</span>
+                    <input type="password" id="loginPassword" placeholder="密码" class="fluent-input">
+                </div>
+                <button class="fluent-btn accent-btn" id="btnLogin" onclick="login()">
+                    <span>登录</span>
+                    <span class="btn-icon">&#xE76C;</span>
+                </button>
+                <div id="loginMessage" class="message-text"></div>
+                <div class="login-links">
+                    <a href="#" onclick="showForgotPassword()">忘记密码？</a>
+                    <a href="#" onclick="showRegisterPage()">立即注册</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==================== 忘记密码弹窗 ==================== -->
+    <div id="forgotModal" class="modal-overlay">
+        <div class="modal-card">
+            <h3 class="modal-title"><span class="mdl2-icon">&#xE72E;</span> 找回密码</h3>
+            <!-- 步骤1：发送验证码 -->
+            <div id="forgotStep1">
+                <div class="input-group">
+                    <input type="text" id="forgotUsername" placeholder="用户名" class="fluent-input">
+                </div>
+                <div class="input-group">
+                    <input type="email" id="forgotEmail" placeholder="注册邮箱" class="fluent-input">
+                </div>
+                <div class="input-group">
+                    <input type="text" id="forgotVerifyCode" placeholder="邮箱验证码" class="fluent-input" style="flex:1;">
+                    <button class="fluent-btn secondary-btn" id="btnSendForgotCode" onclick="sendForgotVerificationCode()">获取验证码</button>
+                </div>
+                <div class="input-group">
+                    <input type="password" id="forgotNewPassword" placeholder="新密码 (6位以上)" class="fluent-input">
+                </div>
+                <div class="input-group">
+                    <input type="password" id="forgotConfirmPassword" placeholder="确认新密码" class="fluent-input">
+                </div>
+            </div>
+            <div id="forgotMessage" class="message-text"></div>
+            <div class="modal-actions">
+                <button class="fluent-btn secondary-btn" onclick="closeForgotModal()">取消</button>
+                <button class="fluent-btn accent-btn" onclick="resetPasswordWithCode()">重置密码</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==================== 注册页面 ==================== -->
+    <div id="registerPage" class="page register-page">
+        <div class="register-card">
+            <button class="back-btn" onclick="showLoginPage()"><span class="mdl2-icon">&#xE76B;</span> 返回登录</button>
+            <h1 class="login-title">创建账号</h1>
+            <p class="login-subtitle">加入 NFLSHC Chat</p>
+
+            <div class="login-form">
+                <div class="input-group">
+                    <span class="input-icon">&#xE77B;</span>
+                    <input type="text" id="regUsername" placeholder="用户名 (3-20字符)" class="fluent-input">
+                </div>
+                <div class="input-group">
+                    <span class="input-icon">&#xE72E;</span>
+                    <input type="password" id="regPassword" placeholder="密码 (6位以上)" class="fluent-input">
+                </div>
+                <div class="input-group">
+                    <span class="input-icon">&#xE72E;</span>
+                    <input type="password" id="regPasswordConfirm" placeholder="确认密码" class="fluent-input">
+                </div>
+                <div class="input-group">
+                    <span class="input-icon">&#xE715;</span>
+                    <input type="email" id="regEmail" placeholder="邮箱 (用于找回密码)" class="fluent-input">
+                </div>
+                <div class="input-group" style="gap:8px;">
+                    <span class="input-icon">&#xE72E;</span>
+                    <input type="text" id="regVerifyCode" placeholder="邮箱验证码" class="fluent-input" style="flex:1;">
+                    <button class="fluent-btn secondary-btn" id="btnSendRegCode" onclick="sendRegisterVerificationCode()" style="padding:11px 14px;white-space:nowrap;">获取验证码</button>
+                </div>
+                <button class="fluent-btn accent-btn" onclick="register()">
+                    <span>注册</span>
+                </button>
+                <div id="registerMessage" class="message-text"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==================== 聊天主页面 ==================== -->
+    <div id="chatPage" class="page chat-page">
+        <!-- 左侧面板 -->
+        <div class="sidebar">
+            <div class="sidebar-header">
+                <div class="user-info-compact">
+                    <div class="user-avatar-small" id="sidebarAvatar"></div>
+                    <div class="user-name-small" id="sidebarUsername"></div>
+                </div>
+                <div class="sidebar-actions">
+                    <button class="icon-btn" title="个人资料" onclick="showProfile()">&#xE77B;</button>
+                    <button class="icon-btn" title="好友列表" onclick="showFriends()">&#xE716;</button>
+                    <button class="icon-btn" title="我的收藏" onclick="showFavorites()">&#xE734;</button>
+                    <button class="icon-btn" title="通知" onclick="showNotifications()">&#xE785;</button>
+                    <button class="icon-btn" title="数据导出" onclick="showExport()">&#xE8B1;</button>
+                    <button class="icon-btn" title="退出登录" onclick="logout()">&#xE8BB;</button>
+                </div>
+            </div>
+            <div class="sidebar-search">
+                <input type="text" id="roomSearch" placeholder="搜索聊天室..." class="fluent-input" oninput="filterRooms()">
+            </div>
+            <div class="rooms-header-section">
+                <h3 class="section-title">聊天室</h3>
+                <button class="icon-btn accent-icon" title="创建/加入聊天室" onclick="showCreateRoom()">&#xE710;</button>
+            </div>
+            <div class="rooms-list" id="roomsList">
+                <div class="loading-text">加载中...</div>
+            </div>
+        </div>
+
+        <!-- 右侧聊天区域 -->
+        <div class="chat-area">
+            <div class="chat-header-bar" id="chatHeaderBar">
+                <div class="chat-header-content">
+                    <h3 class="chat-header-title"><span class="mdl2-icon">&#xE715;</span> 选择一个聊天室开始对话</h3>
+                </div>
+                <div class="chat-header-actions" id="chatHeaderActions"></div>
+            </div>
+            <div class="chat-messages" id="messagesContainer">
+                <div class="empty-chat-state">
+                    <div class="empty-chat-icon">&#xE8BD;</div>
+                    <h2>欢迎使用 NFLSHC Chat</h2>
+                    <p>选择一个聊天室开始对话，或创建一个新群聊</p>
+                </div>
+            </div>
+            <div class="chat-input-area" id="chatInputArea" style="display:none;">
+                <div class="reply-preview" id="replyPreview">
+                    <div class="reply-preview-content" id="replyPreviewContent"></div>
+                    <button class="reply-preview-close" onclick="cancelReply()">&#xE8BB;</button>
+                </div>
+                <div class="input-row">
+                    <textarea id="messageInput" class="fluent-input chat-input" placeholder="输入消息... (支持 Markdown，Enter 发送，Shift+Enter 换行)" rows="2"></textarea>
+                    <button class="fluent-btn accent-btn send-btn" id="btnSend" onclick="sendMessage()">
+                        <span class="btn-icon">&#xE725;</span>
+                    </button>
+                </div>
+                <div class="markdown-preview" id="markdownPreview" style="display:none;">
+                    <div class="preview-label">预览</div>
+                    <div class="preview-content" id="previewContent"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==================== 通用模态框 ==================== -->
+    <div id="genericModal" class="modal-overlay">
+        <div class="modal-card" id="genericModalContent"></div>
+    </div>
+
+    <!-- ==================== 脚本 ==================== -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+    <script src="config.js"></script>
+    <script src="utils.js"></script>
+    <script src="github-api.js"></script>
+    <script src="auth.js"></script>
+    <script src="notifications.js"></script>
+    <script src="chat-room.js"></script>
+    <script src="ai-bot.js"></script>
+    <script src="messages.js"></script>
+    <script src="profile.js"></script>
+    <script src="admin.js"></script>
+    <script src="favorites-export.js"></script>
+    <script src="wallpaper.js"></script>
+    <script src="app.js"></script>
+
+    <!-- ==================== 壁纸层 ==================== -->
+    <div id="wallpaperLayer"></div>
+    <!-- 壁纸图片版权 / 介绍 -->
+    <div id="wallpaperCaption">
+        <div class="wp-title" id="wpCaptionTitle"></div>
+        <div class="wp-copyright" id="wpCaptionCopyright"></div>
+    </div>
+
+    <!-- ==================== 壁纸设置弹窗 ==================== -->
+    <div id="wallpaperModal" class="modal-overlay">
+        <div class="modal-card">
+            <h3 class="modal-title"><span class="mdl2-icon">&#xE7B7;</span> 每日一图壁纸</h3>
+            <p style="color:var(--text-muted);font-size:13px;margin:0 0 14px;">壁纸来自必应每日一图，自动每日更新。开启后聊天背景将使用高清壁纸。</p>
+            <label class="wp-row">
+                <span>启用壁纸</span>
+                <input type="checkbox" id="wpToggle">
+            </label>
+            <label class="wp-row">
+                <span>自动每日切换</span>
+                <input type="checkbox" id="wpAuto">
+            </label>
+            <div style="display:flex;gap:10px;margin-top:16px;">
+                <button class="fluent-btn secondary-btn" onclick="changeWallpaperNow()">立即换一张</button>
+                <button class="fluent-btn secondary-btn" onclick="closeWallpaperSettings()">取消</button>
+                <button class="fluent-btn accent-btn" onclick="saveWallpaperSettings()">保存</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==================== Toast ==================== -->
+    <div id="toast" class="toast"></div>
+
+    <script>
+        function toast(msg) {
+            const t = document.getElementById('toast');
+            if (!t) return;
+            t.textContent = msg;
+            t.classList.add('show');
+            clearTimeout(window.__toastTimer);
+            window.__toastTimer = setTimeout(() => t.classList.remove('show'), 2200);
+        }
+    </script>
+</body>
+</html>
