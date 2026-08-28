@@ -5,13 +5,30 @@
 // 废除 GitHub REST API 直连模式（仍使用 GitHub PAT 作为 Worker 鉴权）
 // ============================================================
 
+// ============ Token 管理 ============
+function getToken() {
+    return localStorage.getItem('nflshc_token') || '';
+}
+
+function setToken(token) {
+    if (token) {
+        localStorage.setItem('nflshc_token', token);
+    } else {
+        localStorage.removeItem('nflshc_token');
+    }
+}
+
+function clearToken() {
+    localStorage.removeItem('nflshc_token');
+}
+
 const GITHUB_API = {
     // 兼容旧调用名
     base: CONFIG.API_BASE,
 
     _authHeader() {
-        // 新框架：Worker + D1，公开端点，前端不携带任何令牌
-        return {};
+        const token = getToken();
+        return token ? { 'Authorization': `Bearer ${token}` } : {};
     },
 
     _headers(extra) {
@@ -68,6 +85,77 @@ const GITHUB_API = {
             body: JSON.stringify({ state: 'closed' })
         });
         return res.json();
+    },
+
+    // 认证相关
+    async login(username, password) {
+        const hashed = await hashPassword(password);
+        const res = await fetch(`${CONFIG.API_BASE}/api/auth/login`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username, password: hashed })
+        });
+        if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            throw new Error(err.message || '登录失败');
+        }
+        const data = await res.json();
+        setToken(data.token);
+        return {
+            token: data.token,
+            username: data.username,
+            isAdmin: data.isAdmin
+        };
+    },
+
+    async register(username, password, email, bio) {
+        const hashed = await hashPassword(password);
+        const res = await fetch(`${CONFIG.API_BASE}/api/auth/register`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username, password: hashed, email, bio: bio || '' })
+        });
+        if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            throw new Error(err.message || '注册失败');
+        }
+        return await res.json();
+    },
+
+    async forgotPassword(username, email) {
+        const res = await fetch(`${CONFIG.API_BASE}/api/auth/forgot`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username, email })
+        });
+        return res.json();
+    },
+
+    async verifyResetCode(username, code) {
+        const res = await fetch(`${CONFIG.API_BASE}/api/auth/verify-reset`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username, code })
+        });
+        return res.json();
+    },
+
+    async getMe() {
+        const res = await fetch(`${CONFIG.API_BASE}/api/auth/me`, {
+            headers: this._headers()
+        });
+        if (res.status === 401) return { valid: false };
+        return res.json();
+    },
+
+    async logout() {
+        try {
+            await fetch(`${CONFIG.API_BASE}/api/auth/logout`, {
+                method: 'POST',
+                headers: this._headers()
+            });
+        } catch (e) { /* ignore */ }
+        clearToken();
     }
 };
 

@@ -41,7 +41,50 @@ function clearLoginState() {
     }
 }
 
+async function checkTokenValid() {
+    const token = getToken();
+    if (!token) return false;
+    try {
+        const result = await GITHUB_API.getMe();
+        return result.valid !== false && result.username;
+    } catch (e) {
+        return false;
+    }
+}
+
 async function checkAutoLogin() {
+    const token = getToken();
+    if (!token) {
+        // 无 token，检查本地缓存的用户信息
+        let userStr = localStorage.getItem(STORAGE_KEY);
+        if (!userStr && window.electronAPI && window.electronAPI.isElectron) {
+            const result = await window.electronAPI.loadLocalData('currentUser.json');
+            if (result.success && result.data) {
+                userStr = JSON.stringify(result.data);
+                localStorage.setItem(STORAGE_KEY, userStr);
+            }
+        }
+        if (userStr) {
+            try {
+                const user = JSON.parse(userStr);
+                if (user && user.username) {
+                    S.currentUser = user;
+                    showChatPage();
+                    await initChat();
+                    return true;
+                }
+            } catch (e) { }
+        }
+        return false;
+    }
+    // 有 token，验证有效性
+    const valid = await checkTokenValid();
+    if (!valid) {
+        clearToken();
+        clearLoginState();
+        return false;
+    }
+    // token 有效，恢复用户会话
     let userStr = localStorage.getItem(STORAGE_KEY);
     if (!userStr && window.electronAPI && window.electronAPI.isElectron) {
         const result = await window.electronAPI.loadLocalData('currentUser.json');
@@ -75,46 +118,18 @@ async function login() {
         return;
     }
 
-    // 管理员特判
-    if (username === 'huangzhiyuan' && password === '15240254891') {
-        const userData = { username, isAdmin: true };
-        S.currentUser = userData;
-        saveLoginState(userData);
-        msgDiv.innerHTML = '<span class="success">管理员登录成功，正在跳转...</span>';
-        setTimeout(() => { showChatPage(); initChat(); }, 800);
-        return;
-    }
-
     msgDiv.innerHTML = '<span class="info">正在登录...</span>';
 
     try {
-        const { data: issues } = await GITHUB_API.getAllIssues('user');
-        let foundUser = null;
-        let issueNumber = null;
-        for (const issue of issues) {
-            const userData = parseJsonFromIssue(issue);
-            if (userData && userData.username === username) {
-                if (await verifyPassword(password, userData)) {
-                    foundUser = { ...userData };
-                    issueNumber = issue.number;
-                }
-                break;
-            }
-        }
-
-        if (foundUser) {
-            if (foundUser.isBanned) {
-                msgDiv.innerHTML = '<span class="error">账号已被封禁，请联系管理员</span>';
-                return;
-            }
+        const result = await GITHUB_API.login(username, password);
+        if (result.token) {
             const userData = {
-                username,
-                isAdmin: false,
-                email: foundUser.email,
-                avatarUrl: foundUser.avatarUrl || '',
-                bio: foundUser.bio || '',
-                issueNumber,
-                createdAt: foundUser.createdAt
+                username: result.username,
+                isAdmin: result.isAdmin || false,
+                email: '',
+                avatarUrl: '',
+                bio: '',
+                createdAt: new Date().toISOString()
             };
             S.currentUser = userData;
             saveLoginState(userData);
@@ -129,9 +144,12 @@ async function login() {
 }
 
 // ============ 退出登录 ============
-function logout() {
+async function logout() {
     if (S.pollInterval) clearInterval(S.pollInterval);
     stopNotifPolling();
+    try {
+        await GITHUB_API.logout();
+    } catch (e) { /* ignore */ }
     clearLoginState();
     S.currentUser = null;
     S.currentRoom = null;
@@ -245,36 +263,7 @@ async function register() {
     msgDiv.innerHTML = '<span class="info">正在注册...</span>';
 
     try {
-        const { data: issues } = await GITHUB_API.getAllIssues('user');
-        for (const issue of issues) {
-            const userData = parseJsonFromIssue(issue);
-            if (userData && userData.username === username) {
-                msgDiv.innerHTML = '<span class="error">用户名已被注册</span>';
-                return;
-            }
-            if (userData && userData.email === email) {
-                msgDiv.innerHTML = '<span class="error">该邮箱已被注册</span>';
-                return;
-            }
-        }
-
-        const hashedPassword = await hashPassword(password);
-        const userData = {
-            username,
-            email,
-            password: hashedPassword,
-            passwordHashed: true,
-            bio: '',
-            avatarUrl: '',
-            xp: 0,
-            level: 1,
-            isBanned: false,
-            createdAt: new Date().toISOString()
-        };
-
-        const issueBody = buildIssueBody('用户信息', userData);
-        await GITHUB_API.createIssue(`User: ${username}`, issueBody, ['user']);
-
+        await GITHUB_API.register(username, password, email, '');
         msgDiv.innerHTML = '<span class="success">注册成功！正在跳转...</span>';
         document.getElementById('regVerifyCode').value = '';
         verificationCodeStore.delete(email);
@@ -313,32 +302,18 @@ async function sendForgotVerificationCode() {
         return;
     }
 
-    msgDiv.innerHTML = '<span class="info">正在验证并发送验证码...</span>';
+    msgDiv.innerHTML = '<span class="info">正在发送验证码...</span>';
     try {
-        const { data: issues } = await GITHUB_API.getAllIssues('user');
-        let foundUser = null;
-        let issueNumber = null;
-        for (const issue of issues) {
-            const userData = parseJsonFromIssue(issue);
-            if (userData && userData.username === username) {
-                if (userData.email === email) {
-                    foundUser = userData;
-                    issueNumber = issue.number;
-                }
-                break;
-            }
+        const result = await GITHUB_API.forgotPassword(username, email);
+        if (result.success || result.message) {
+            const code = generateVerificationCode();
+            verificationCodeStore.set(email, { code, timestamp: Date.now() });
+            await sendVerificationEmail(email, code);
+            startCountdown('btnSendForgotCode', 60);
+            msgDiv.innerHTML = '<span class="success">验证码已发送，请查收邮箱</span>';
+        } else {
+            msgDiv.innerHTML = '<span class="error">' + (result.message || '发送失败') + '</span>';
         }
-
-        if (!foundUser) {
-            msgDiv.innerHTML = '<span class="error">用户名或邮箱不匹配</span>';
-            return;
-        }
-
-        const code = generateVerificationCode();
-        verificationCodeStore.set(email, { code, timestamp: Date.now(), issueNumber });
-        await sendVerificationEmail(email, code);
-        startCountdown('btnSendForgotCode', 60);
-        msgDiv.innerHTML = '<span class="success">验证码已发送，请查收邮箱</span>';
     } catch (error) {
         msgDiv.innerHTML = `<span class="error">发送失败: ${error.message}</span>`;
     }
@@ -374,28 +349,40 @@ async function resetPasswordWithCode() {
         msgDiv.innerHTML = '<span class="error">验证码已过期，请重新获取</span>';
         return;
     }
-    if (!stored.issueNumber) {
-        msgDiv.innerHTML = '<span class="error">无法找到对应用户，请重新获取验证码</span>';
-        return;
-    }
 
-    msgDiv.innerHTML = '<span class="info">正在重置密码...</span>';
+    msgDiv.innerHTML = '<span class="info">正在验证并重置密码...</span>';
     try {
-        const issue = await GITHUB_API.getIssue(stored.issueNumber);
-        const userData = parseJsonFromIssue(issue);
-        if (!userData || userData.username !== username) {
-            msgDiv.innerHTML = '<span class="error">用户信息异常</span>';
+        // 先验证验证码
+        const verifyResult = await GITHUB_API.verifyResetCode(username, verifyCode);
+        if (!verifyResult.success) {
+            msgDiv.innerHTML = '<span class="error">验证码验证失败</span>';
             return;
         }
-
-        userData.password = await hashPassword(newPassword);
-        userData.passwordHashed = true;
-        const issueBody = buildIssueBody('用户信息', userData);
-        await GITHUB_API.updateIssue(stored.issueNumber, issueBody);
-
+        // 直接沿用 nflshcchat/index.html 的密码重置逻辑
+        const hashedPassword = await hashPassword(newPassword);
+        const resetPayload = {
+            username: username,
+            password: hashedPassword,
+            passwordHashed: true
+        };
+        const updatedBody = `用户信息\n\`\`\`json\n${JSON.stringify(resetPayload, null, 2)}\n\`\`\``;
+        const patchRes = await fetch(`${CONFIG.API_BASE}/api/legacy/issues/${encodeURIComponent(username)}?labels=user`, {
+            method: 'PATCH',
+            headers: {
+                'Accept': 'application/vnd.github.v3+json',
+                'Content-Type': 'application/json',
+                ...GITHUB_API._headers()
+            },
+            body: JSON.stringify({ body: updatedBody })
+        });
+        if (!patchRes.ok) {
+            const j = await patchRes.json().catch(() => ({}));
+            msgDiv.innerHTML = `<span class="error">重置失败：${j.error || ('HTTP ' + patchRes.status)}</span>`;
+            return;
+        }
         verificationCodeStore.delete(email);
-        msgDiv.innerHTML = '<span class="success">密码重置成功，请用新密码登录</span>';
-        setTimeout(() => closeForgotModal(), 1500);
+        msgDiv.innerHTML = '<span class="success">密码重置成功！正在跳转到登录页...</span>';
+        setTimeout(() => closeForgotModal(), 2000);
     } catch (error) {
         msgDiv.innerHTML = `<span class="error">重置失败: ${error.message}</span>`;
     }
