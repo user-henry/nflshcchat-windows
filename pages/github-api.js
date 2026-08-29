@@ -97,7 +97,7 @@ const GITHUB_API = {
         });
         if (!res.ok) {
             const err = await res.json().catch(() => ({}));
-            throw new Error(err.message || '登录失败');
+            throw new Error(err.error || err.message || '登录失败');
         }
         const data = await res.json();
         setToken(data.token);
@@ -108,18 +108,31 @@ const GITHUB_API = {
         };
     },
 
+    // 注册：走 legacy users 端点（匿名创建新用户，与 web 版 register.html 一致，
+    // 服务端有"用户名已存在 409 / IP 被封禁 403"防护，注册无需邮箱验证码）
     async register(username, password, email, bio) {
         const hashed = await hashPassword(password);
-        const res = await fetch(`${CONFIG.API_BASE}/api/auth/register`, {
+        const userData = {
+            username,
+            email,
+            password: hashed,
+            passwordHashed: true,
+            bio: bio || '',
+            createdAt: new Date().toISOString(),
+            isBanned: false,
+            avatar: 'https://cdn.luogu.com.cn/upload/image_hosting/5rdb3c08.png'
+        };
+        const body = buildIssueBody('用户信息', userData);
+        const res = await fetch(`${CONFIG.API_BASE}/api/legacy/issues`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ username, password: hashed, email, bio: bio || '' })
+            headers: Object.assign({ 'Content-Type': 'application/json' }, this._authHeader()),
+            body: JSON.stringify({ title: `User: ${username}`, body, labels: ['user'] })
         });
-        if (!res.ok) {
-            const err = await res.json().catch(() => ({}));
-            throw new Error(err.message || '注册失败');
-        }
-        return await res.json();
+        const data = await res.json().catch(() => ({}));
+        if (res.status === 409) throw new Error('用户名已存在');
+        if (res.status === 403) throw new Error(data.error || '您的 IP 已被封禁，请联系管理员');
+        if (!res.ok) throw new Error(data.error || data.message || ('注册失败 (HTTP ' + res.status + ')'));
+        return data;
     },
 
     async forgotPassword(username, email) {
