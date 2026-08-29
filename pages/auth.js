@@ -55,26 +55,7 @@ async function checkTokenValid() {
 async function checkAutoLogin() {
     const token = getToken();
     if (!token) {
-        // 无 token，检查本地缓存的用户信息
-        let userStr = localStorage.getItem(STORAGE_KEY);
-        if (!userStr && window.electronAPI && window.electronAPI.isElectron) {
-            const result = await window.electronAPI.loadLocalData('currentUser.json');
-            if (result.success && result.data) {
-                userStr = JSON.stringify(result.data);
-                localStorage.setItem(STORAGE_KEY, userStr);
-            }
-        }
-        if (userStr) {
-            try {
-                const user = JSON.parse(userStr);
-                if (user && user.username) {
-                    S.currentUser = user;
-                    showChatPage();
-                    await initChat();
-                    return true;
-                }
-            } catch (e) { }
-        }
+        // 无 token：必须重新登录（所有接口都需要 Bearer Token，无 token 无法读取数据）
         return false;
     }
     // 有 token，验证有效性
@@ -199,37 +180,15 @@ function startCountdown(btnId, seconds = 60) {
     }, 1000);
 }
 
-// ============ 注册 ============
-async function sendRegisterVerificationCode() {
-    const email = document.getElementById('regEmail').value.trim();
-    const msgDiv = document.getElementById('registerMessage');
-
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-        msgDiv.innerHTML = '<span class="error">请输入有效的邮箱地址</span>';
-        return;
-    }
-
-    msgDiv.innerHTML = '<span class="info">正在发送验证码...</span>';
-    try {
-        const code = generateVerificationCode();
-        verificationCodeStore.set(email, { code, timestamp: Date.now() });
-        await sendVerificationEmail(email, code);
-        startCountdown('btnSendRegCode', 60);
-        msgDiv.innerHTML = '<span class="success">验证码已发送，请查收邮箱</span>';
-    } catch (error) {
-        msgDiv.innerHTML = `<span class="error">发送失败: ${error.message}</span>`;
-    }
-}
-
+// ============ 注册（无需邮箱验证码，与 web 版 register.html 一致） ============
 async function register() {
     const username = document.getElementById('regUsername').value.trim();
     const password = document.getElementById('regPassword').value;
     const passwordConfirm = document.getElementById('regPasswordConfirm').value;
     const email = document.getElementById('regEmail').value.trim();
-    const verifyCode = document.getElementById('regVerifyCode').value.trim();
     const msgDiv = document.getElementById('registerMessage');
 
-    if (!username || !password || !passwordConfirm || !email || !verifyCode) {
+    if (!username || !password || !passwordConfirm || !email) {
         msgDiv.innerHTML = '<span class="error">请填写所有字段</span>';
         return;
     }
@@ -250,23 +209,11 @@ async function register() {
         return;
     }
 
-    const stored = verificationCodeStore.get(email);
-    if (!stored || stored.code !== verifyCode) {
-        msgDiv.innerHTML = '<span class="error">验证码错误或已过期</span>';
-        return;
-    }
-    if (Date.now() - stored.timestamp > 10 * 60 * 1000) {
-        msgDiv.innerHTML = '<span class="error">验证码已过期，请重新获取</span>';
-        return;
-    }
-
     msgDiv.innerHTML = '<span class="info">正在注册...</span>';
 
     try {
         await GITHUB_API.register(username, password, email, '');
         msgDiv.innerHTML = '<span class="success">注册成功！正在跳转...</span>';
-        document.getElementById('regVerifyCode').value = '';
-        verificationCodeStore.delete(email);
         setTimeout(() => showLoginPage(), 1000);
     } catch (error) {
         msgDiv.innerHTML = `<span class="error">注册失败: ${error.message}</span>`;
@@ -304,15 +251,13 @@ async function sendForgotVerificationCode() {
 
     msgDiv.innerHTML = '<span class="info">正在发送验证码...</span>';
     try {
+        // Worker 端校验用户名+邮箱并发送邮件（验证码由 Worker 生成并临时保存，5 分钟有效）
         const result = await GITHUB_API.forgotPassword(username, email);
-        if (result.success || result.message) {
-            const code = generateVerificationCode();
-            verificationCodeStore.set(email, { code, timestamp: Date.now() });
-            await sendVerificationEmail(email, code);
+        if (result.ok) {
             startCountdown('btnSendForgotCode', 60);
-            msgDiv.innerHTML = '<span class="success">验证码已发送，请查收邮箱</span>';
+            msgDiv.innerHTML = '<span class="success">' + (result.message || '验证码已发送，请查收邮箱') + '</span>';
         } else {
-            msgDiv.innerHTML = '<span class="error">' + (result.message || '发送失败') + '</span>';
+            msgDiv.innerHTML = '<span class="error">' + (result.error || '发送失败') + '</span>';
         }
     } catch (error) {
         msgDiv.innerHTML = `<span class="error">发送失败: ${error.message}</span>`;
@@ -340,25 +285,15 @@ async function resetPasswordWithCode() {
         return;
     }
 
-    const stored = verificationCodeStore.get(email);
-    if (!stored || stored.code !== verifyCode) {
-        msgDiv.innerHTML = '<span class="error">验证码错误或已过期</span>';
-        return;
-    }
-    if (Date.now() - stored.timestamp > 10 * 60 * 1000) {
-        msgDiv.innerHTML = '<span class="error">验证码已过期，请重新获取</span>';
-        return;
-    }
-
     msgDiv.innerHTML = '<span class="info">正在验证并重置密码...</span>';
     try {
-        // 先验证验证码
+        // Worker 校验邮箱中的验证码，通过后签发临时 token（验证码用后即删）
         const verifyResult = await GITHUB_API.verifyResetCode(username, verifyCode);
-        if (!verifyResult.success) {
-            msgDiv.innerHTML = '<span class="error">验证码验证失败</span>';
+        if (!(verifyResult.ok || verifyResult.success) || !verifyResult.token) {
+            msgDiv.innerHTML = '<span class="error">验证码错误或已过期，请重新获取</span>';
             return;
         }
-        // 直接沿用 nflshcchat/index.html 的密码重置逻辑
+        // 用 verify-reset 签发的 token 修改密码
         const hashedPassword = await hashPassword(newPassword);
         const resetPayload = {
             username: username,
@@ -371,7 +306,7 @@ async function resetPasswordWithCode() {
             headers: {
                 'Accept': 'application/vnd.github.v3+json',
                 'Content-Type': 'application/json',
-                ...GITHUB_API._headers()
+                'Authorization': 'Bearer ' + verifyResult.token
             },
             body: JSON.stringify({ body: updatedBody })
         });
@@ -380,7 +315,7 @@ async function resetPasswordWithCode() {
             msgDiv.innerHTML = `<span class="error">重置失败：${j.error || ('HTTP ' + patchRes.status)}</span>`;
             return;
         }
-        verificationCodeStore.delete(email);
+        clearToken();
         msgDiv.innerHTML = '<span class="success">密码重置成功！正在跳转到登录页...</span>';
         setTimeout(() => closeForgotModal(), 2000);
     } catch (error) {
