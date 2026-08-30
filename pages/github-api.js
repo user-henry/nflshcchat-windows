@@ -136,10 +136,17 @@ const GITHUB_API = {
     },
 
     async forgotPassword(username, email) {
+        // 与 web 版 index.html 一致：带上 EmailJS 服务/模板/公钥，Worker 端用它发信
+        const ec = window.EMAILJS_CONFIG || {};
         const res = await fetch(`${CONFIG.API_BASE}/api/auth/forgot`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ username, email })
+            body: JSON.stringify({
+                username, email,
+                serviceId: ec.serviceId,
+                templateId: ec.templateId,
+                publicKey: ec.publicKey
+            })
         });
         return res.json();
     },
