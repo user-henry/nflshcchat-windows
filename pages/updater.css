@@ -1,0 +1,253 @@
+/* ============================================================
+   NFLSHC Chat - 自动更新 UI 样式
+   ------------------------------------------------------------
+   仅新增右下角"更新胶囊入口 + 浮动更新卡片"，不改变任何既有布局。
+   颜色全部复用 styles.css 中的 CSS 变量，不引入外部框架 / CDN。
+   层级：壁纸层 0 < 主内容 1 < 模态框 2000 < 本卡片 2300 < Toast 4000
+   ============================================================ */
+
+/* === 右下角常驻入口胶囊（显示当前版本号） === */
+#updatePill {
+    position: fixed;
+    right: 16px;
+    bottom: 16px;
+    z-index: 2300;
+    display: none;                 /* 由 updater.js 按需显示 */
+    align-items: center;
+    gap: 6px;
+    padding: 7px 13px;
+    border: 1px solid var(--border-color);
+    border-radius: 999px;
+    background: var(--bg-glass);
+    color: var(--text-secondary);
+    font-family: var(--font-family);
+    font-size: 12px;
+    line-height: 1;
+    cursor: pointer;
+    box-shadow: var(--shadow-md);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    transition: var(--transition-fast);
+}
+
+#updatePill.show {
+    display: inline-flex;
+}
+
+#updatePill:hover {
+    color: var(--accent-color);
+    border-color: var(--accent-border);
+    background: var(--bg-glass-hover);
+}
+
+#updatePill .update-icon {
+    font-family: 'Segoe Fluent Icons', 'Segoe MDL2 Assets', sans-serif;
+    font-size: 13px;
+    font-weight: normal;
+}
+
+/* 有新版本时高亮并显示小红点提示 */
+#updatePill.has-update {
+    color: var(--accent-color);
+    border-color: var(--accent-border);
+    box-shadow: var(--shadow-glow);
+}
+
+#updatePill.has-update .update-icon {
+    animation: update-spin 2.4s linear infinite;
+}
+
+@keyframes update-spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+/* === 浮动更新卡片 === */
+#updateCard {
+    position: fixed;
+    right: 16px;
+    bottom: 16px;
+    z-index: 2300;
+    display: none;
+    flex-direction: column;
+    gap: 12px;
+    width: 320px;
+    max-width: calc(100vw - 32px);
+    padding: 16px;
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-lg);
+    font-family: var(--font-family);
+    color: var(--text-primary);
+    animation: update-card-in 0.25s ease;
+}
+
+#updateCard.show {
+    display: flex;
+}
+
+@keyframes update-card-in {
+    from { opacity: 0; transform: translateY(14px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+#updateCard .update-card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+#updateCard .update-card-title {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 15px;
+    font-weight: 600;
+}
+
+#updateCard .update-card-title .mdl2-icon {
+    color: var(--accent-color);
+    font-size: 16px;
+}
+
+#updateCard .update-card-close {
+    width: 26px;
+    height: 26px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: none;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--text-muted);
+    font-family: 'Segoe Fluent Icons', 'Segoe MDL2 Assets', sans-serif;
+    font-size: 12px;
+    cursor: pointer;
+    transition: var(--transition-fast);
+}
+
+#updateCard .update-card-close:hover {
+    background: var(--bg-hover);
+    color: var(--text-primary);
+}
+
+#updateCard .update-card-body {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+#updateCard .update-version-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    font-size: 12px;
+    color: var(--text-muted);
+}
+
+#updateCard .update-version-value {
+    color: var(--text-secondary);
+    font-family: 'Cascadia Code', 'Consolas', monospace;
+}
+
+#updateCard .update-message {
+    font-size: 13px;
+    line-height: 1.6;
+    color: var(--text-secondary);
+    word-break: break-word;
+}
+
+/* 状态配色（由 updater.js 切换 class） */
+#updateCard .update-message.is-error { color: var(--danger); }
+#updateCard .update-message.is-success { color: var(--success); }
+#updateCard .update-message.is-accent { color: var(--accent-color); }
+#updateCard .update-message.is-muted { color: var(--text-muted); }
+
+/* 进度条 */
+#updateCard .update-progress {
+    display: none;
+    align-items: center;
+    gap: 8px;
+}
+
+#updateCard .update-progress.show {
+    display: flex;
+}
+
+#updateCard .update-progress-track {
+    flex: 1 1 auto;
+    height: 6px;
+    border-radius: 999px;
+    background: var(--bg-input);
+    border: 1px solid var(--border-light);
+    overflow: hidden;
+}
+
+#updateCard .update-progress-fill {
+    width: 0%;
+    height: 100%;
+    border-radius: 999px;
+    background: linear-gradient(90deg, var(--accent-color), var(--accent-hover));
+    transition: width 0.25s ease;
+}
+
+#updateCard .update-progress-text {
+    flex: 0 0 auto;
+    min-width: 38px;
+    text-align: right;
+    font-size: 12px;
+    color: var(--text-secondary);
+    font-family: 'Cascadia Code', 'Consolas', monospace;
+}
+
+/* 操作按钮 */
+#updateCard .update-card-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+#updateCard .update-btn {
+    flex: 1 1 0;
+    padding: 9px 12px;
+    font-size: 13px;
+}
+
+#updateCard .update-btn .mdl2-icon {
+    font-size: 14px;
+}
+
+/* "立即重启安装"按钮：仅在下载完成后显示 */
+#updateCard #updateInstallBtn {
+    display: none;
+}
+
+#updateCard #updateInstallBtn.show {
+    display: inline-flex;
+}
+
+/* 便携版 / 开发模式等不可用场景的提示条 */
+#updateCard .update-note {
+    display: none;
+    padding: 8px 10px;
+    border-radius: var(--radius-sm);
+    background: var(--accent-light);
+    border: 1px solid var(--accent-border);
+    color: var(--text-secondary);
+    font-size: 12px;
+    line-height: 1.6;
+}
+
+#updateCard .update-note.show {
+    display: block;
+}
+
+/* 窄窗口下自动收窄 */
+@media (max-width: 520px) {
+    #updateCard {
+        width: calc(100vw - 32px);
+    }
+}
