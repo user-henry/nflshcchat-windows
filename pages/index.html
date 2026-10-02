@@ -9,6 +9,7 @@
     <meta name="referrer" content="no-referrer">
     <title>NFLSHC Chat</title>
     <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="updater.css">
 </head>
 <body>
     <!-- ==================== 标题栏 ==================== -->
@@ -188,6 +189,43 @@
         <div class="modal-card" id="genericModalContent"></div>
     </div>
 
+    <!-- ==================== 自动更新：右下角入口 + 浮动卡片 ==================== -->
+    <!-- 常驻胶囊入口：显示当前版本号，点击展开下方更新卡片 -->
+    <button type="button" id="updatePill" title="软件更新">
+        <span class="update-icon" id="updatePillIcon">&#xE895;</span>
+        <span id="updatePillText">检查更新</span>
+    </button>
+
+    <!-- 浮动更新卡片：由 pages/updater.js 控制显示与文案 -->
+    <div id="updateCard">
+        <div class="update-card-header">
+            <span class="update-card-title"><span class="mdl2-icon">&#xE777;</span> 软件更新</span>
+            <button type="button" class="update-card-close" id="updateCardClose" title="收起">&#xE8BB;</button>
+        </div>
+        <div class="update-card-body">
+            <div class="update-version-row">
+                <span>当前版本</span>
+                <span class="update-version-value" id="updateCurrentVersion">--</span>
+            </div>
+            <div class="update-message is-muted" id="updateMessage">正在获取更新信息…</div>
+            <div class="update-note" id="updateNote"></div>
+            <div class="update-progress" id="updateProgressWrap">
+                <div class="update-progress-track">
+                    <div class="update-progress-fill" id="updateProgressFill"></div>
+                </div>
+                <div class="update-progress-text" id="updateProgressText">0%</div>
+            </div>
+        </div>
+        <div class="update-card-actions">
+            <button type="button" class="fluent-btn secondary-btn update-btn" id="updateCheckBtn">
+                <span class="mdl2-icon">&#xE72C;</span><span id="updateCheckBtnText">检查更新</span>
+            </button>
+            <button type="button" class="fluent-btn accent-btn update-btn" id="updateInstallBtn">
+                <span class="mdl2-icon">&#xE777;</span><span>立即重启安装</span>
+            </button>
+        </div>
+    </div>
+
     <!-- ==================== 脚本 ==================== -->
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
@@ -204,6 +242,8 @@
     <script src="favorites-export.js"></script>
     <script src="wallpaper.js"></script>
     <script src="app.js"></script>
+    <!-- 自动更新 UI（独立附加，不依赖其它业务脚本） -->
+    <script src="updater.js"></script>
 
     <!-- ==================== 壁纸层 ==================== -->
     <div id="wallpaperLayer"></div>
