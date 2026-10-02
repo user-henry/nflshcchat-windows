@@ -1,6 +1,6 @@
 {
   "name": "nflshc-chat",
-  "version": "2.4.0",
+  "version": "2.5.0",
   "description": "NFLSHC Chat - Windows Desktop",
   "main": "main.js",
   "author": "HZY (huangzhiyuan)",
@@ -22,6 +22,15 @@
       "assets/**/*",
       "node_modules/**/*"
     ],
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "user-henry",
+        "repo": "nflshcchat-windows",
+        "releaseType": "release"
+      }
+    ],
+    "generateUpdatesFilesForAllChannels": false,
     "win": {
       "target": [
         {
@@ -51,11 +60,11 @@
       "installerIcon": "assets/icon.ico",
       "uninstallerIcon": "assets/icon.ico",
       "installerHeaderIcon": "assets/icon.ico",
-      "artifactName": "${productName}-${version}-Setup.${ext}",
+      "artifactName": "NFLSHC-Chat-${version}-Setup.${ext}",
       "license": "LICENSE.txt"
     },
     "portable": {
-      "artifactName": "${productName}-${version}-Portable.${ext}"
+      "artifactName": "NFLSHC-Chat-${version}-Portable.${ext}"
     }
   },
   "devDependencies": {
@@ -64,5 +73,8 @@
   },
   "electronDownload": {
     "mirror": "https://registry.npmmirror.com/-/binary/electron/"
+  },
+  "dependencies": {
+    "electron-updater": "^6.3.9"
   }
 }
