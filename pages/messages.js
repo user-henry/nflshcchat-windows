@@ -189,7 +189,7 @@ function renderMarkdown(content) {
         return `\u200B\u200BMENTION_${mentions.length - 1}\u200B\u200B`;
     });
 
-    let html = tempContent;
+    let html = escapeHtml(tempContent);   // 兜底：marked 不可用时按纯文本显示
     if (typeof marked !== 'undefined') {
         try {
             marked.setOptions({ breaks: true, gfm: true, headerIds: false, mangle: false });
@@ -209,7 +209,8 @@ function renderMarkdown(content) {
         const regex = new RegExp(`\u200B\u200BMENTION_${i}\u200B\u200B`, 'g');
         html = html.replace(regex, `<span class="${cls}">${mention}</span>`);
     }
-    return html;
+    // 白名单过滤：允许内联 HTML（图片/视频/音频/表格），去掉脚本、事件属性与危险链接
+    return window.sanitizeHtml ? window.sanitizeHtml(html) : html;
 }
 
 // ============ 消息渲染 ============
