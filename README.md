@@ -1,3 +1,5 @@
+**简体中文** | [English](README.en.md)
+
 # NFLSHC Chat · Windows 桌面端（开发者文档）
 
 NFLSHC Chat（南京外国语学校淮安分校学生聊天平台）的 Windows 桌面客户端：基于 **Electron + 原生 HTML/CSS/JS**（无前端框架、无打包器），后端复用 NFLSHC Chat 的 **Cloudflare Workers + D1**，并通过 **electron-builder + electron-updater** 打包与自动更新。
